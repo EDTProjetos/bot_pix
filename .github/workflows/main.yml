@@ -5,18 +5,18 @@ on:
     - cron: "0 * * * *"   # todo início de hora (UTC)
   workflow_dispatch: {}    # permite rodar manualmente
 
-# Evita overlap se uma execução demorar mais que 1h
+# Evita overlap: se um job ainda estiver rodando, cancela o anterior
 concurrency:
   group: pops_to_sheets
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20   # mata se passar disso
+    timeout-minutes: 20
     env:
       TZ: America/Sao_Paulo
-      # Estes só terão efeito se você criar secrets no repo; ok deixar aqui
+      # Se quiser usar secrets no futuro, já estão aqui:
       POPSOL_USER: ${{ secrets.POPSOL_USER }}
       POPSOL_PASS: ${{ secrets.POPSOL_PASS }}
       APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
