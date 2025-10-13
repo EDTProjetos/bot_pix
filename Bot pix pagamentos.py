@@ -4,15 +4,12 @@
 Automação PopSol - Filtragem e Envio para Google Planilhas
 - Acessa PopSol, aplica filtro de pagamento (hoje), clica no ícone de ajuda
   para gerar o número e envia para um Apps Script (Google Sheets).
-- Versão para CI (GitHub Actions): Chrome headless + perfil temporário único.
+- Versão para CI (GitHub Actions): Chrome headless estável (sem user-data-dir).
 """
 
-import os
 import time
 import json
-import shutil
 import datetime as dt
-import tempfile
 import requests
 
 # ===== Selenium =====
@@ -45,29 +42,26 @@ APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE8JPkff699pufz7js4x
 
 # ================== WebDriver ==================
 def make_driver(headless: bool = True) -> webdriver.Chrome:
-    """Cria Chrome WebDriver com perfil temporário único (evita 'profile in use')."""
+    """Chrome headless estável para CI (sem user-data-dir)."""
     opts = Options()
     opts.page_load_strategy = "eager"
     opts.add_argument("--window-size=1366,900")
     opts.add_argument("--lang=pt-BR")
     opts.add_argument("--disable-notifications")
+
+    # Flags essenciais no GitHub Actions (Linux)
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
     opts.add_argument("--no-zygote")
     opts.add_argument("--disable-setuid-sandbox")
-
-    # Perfil temporário exclusivo por execução
-    profile_dir = tempfile.mkdtemp(prefix="chrome-profile-")
-    opts.add_argument(f"--user-data-dir={profile_dir}")
+    opts.add_argument("--remote-debugging-pipe")  # evita conflito de porta
 
     if headless:
         opts.add_argument("--headless=new")
 
-    driver = webdriver.Chrome(options=opts)
-    # Guardar para limpeza no finally
-    driver._temp_profile_dir = profile_dir
-    return driver
+    # ⚠️ Importante: NÃO usar --user-data-dir aqui
+    return webdriver.Chrome(options=opts)
 
 
 def safe_click_we(driver, we):
@@ -188,34 +182,13 @@ def main():
     print(f"[Data Alvo] Período de pagamento: {data_inicio_str}")
     print("=" * 60)
 
-    success = False
-    final_msg = "A automação encontrou um erro."
-    driver = make_driver(headless=HEADLESS)
-
     try:
+        driver = make_driver(headless=HEADLESS)
         pops_logar_e_filtrar_recebimentos(driver, data_inicio_str, data_fim_str)
-        final_msg = (
-            "Processo concluído com sucesso!\n"
-            "- O número e o registro de data/hora foram enviados para a Google Planilha."
-        )
-        success = True
-        print("\n" + final_msg)
-
-    except Exception as e:
-        final_msg = f"Ocorreu um erro durante a execução:\n\n{e}"
-        print(f"\n[ERRO] {final_msg}")
-        raise
-
+        print("\nProcesso concluído com sucesso!\n- O número e o timestamp foram enviados para a Google Planilha.")
     finally:
-        # encerra o Chrome
         try:
             driver.quit()
-        except Exception:
-            pass
-        # remove o perfil temporário para não acumular lixo entre runs
-        try:
-            if getattr(driver, "_temp_profile_dir", None):
-                shutil.rmtree(driver._temp_profile_dir, ignore_errors=True)
         except Exception:
             pass
 
