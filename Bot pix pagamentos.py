@@ -3,16 +3,17 @@
 """
 Automação PopSol - Filtragem e Envio para Google Planilhas
 - Objetivo: Acessar o portal PopSol, aplicar filtro de pagamento, clicar no ícone
-de ajuda para gerar um número e enviá-lo para uma Google Planilha via Web App.
+            de ajuda para gerar um número e enviá-lo para uma Google Planilha via Web App.
 - Versão com login otimizado e seletor de número preciso.
-- Ajustado para funcionar com o Apps Script que adiciona o timestamp.
+- Ajustado para usar credenciais fixas e ser executado em servidor Headless.
 """
 
 import time
 import datetime as dt
 import tempfile, subprocess
 import requests # Para requisições HTTP
-import json     # Para formatar os dados
+import json     # Para formatar os dados
+import os       # Mantido por precaução, mas não é usado para ler secrets
 
 # ===== Imports do Selenium =====
 from selenium import webdriver
@@ -23,54 +24,28 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 
-# ===== Notificação final (Opcional, mas útil) =====
-import ctypes
-try:
-    import tkinter as tk
-    from tkinter import messagebox
-except Exception:
-    tk = None; messagebox = None
-
-def _vbs_escape(s: str) -> str:
-    return (s or "").replace('"', '""')
-
-def _notify_vbs(title: str, text: str) -> bool:
-    try:
-        vbs = f'MsgBox "{_vbs_escape(text)}", 64, "{_vbs_escape(title)}"'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".vbs", mode="w", encoding="cp1252") as f:
-            f.write(vbs); vbs_path = f.name
-        subprocess.Popen(["wscript.exe", vbs_path], close_fds=True)
-        return True
-    except Exception:
-        return False
-
+# ===== Notificação local (Removida, pois não funciona em servidor) =====
 def notify(title: str, text: str) -> None:
-    try:
-        ctypes.windll.user32.MessageBoxW(0, text, title, 0x40); return
-    except Exception: pass
-    if _notify_vbs(title, text): return
-    if tk and messagebox:
-        try:
-            root = tk.Tk(); root.withdraw(); messagebox.showinfo(title, text); root.destroy(); return
-        except Exception: pass
-    print(f"[NOTIFICAÇÃO] {title}\n{text}")
+    # Esta função será usada apenas para logs no GitHub Actions
+    print(f"[{title}] {text}")
 
 # ================== CONFIG ==================
-# Mude para False para ver o navegador em ação
-HEADLESS = False
+# No GitHub Actions, o HEADLESS deve ser True.
+HEADLESS = True
 # Tempo máximo de espera para os elementos aparecerem na tela
 WAIT_S = 30
 # Formato de data usado pelo portal PopSol
 DATE_FMT_BR = "%d/%m/%Y"
 
-# ================== POPSOL - CREDENCIAIS E URL ==================
+# ================== POPSOL - CREDENCIAIS E URL (FIXAS NO CÓDIGO) ==================
 LOGIN_URL_POPSOL = "https://cliente.popsolenergia.com.br/#/auth/login"
-USER_POPSOL = "raphael.barbosa@energiadetodos.com.br"
-PWD_POPSOL = "Kon@rulind0."
+USER_POPSOL = "raphael.barbosa@energiadetodos.com.br" # <-- Credencial Fixa
+PWD_POPSOL  = "Kon@rulind0."                         # <-- Credencial Fixa
 
-# ================== GOOGLE SHEETS - WEB APP ==================
+# ================== GOOGLE SHEETS - WEB APP (FIXO NO CÓDIGO) ==================
 # ⚠️ COLE A URL DO SEU APP DA WEB PUBLICADO AQUI ⚠️
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbws_qHwe4PfwzMt59RIz98pa3OWBvPvJNgyZphS9Mmgr3Hz-9ZIqp_0yvVi6Fm3Ge6emw/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE8JPkff699pufz7js4xr-XWa5G5pc_6be-RmG5CQbpWHQlq6loYIceU6XB9oYcWRxfg/exec" # <-- URL Fixa
+
 
 # ================== Helpers de WebDriver ==================
 def make_driver(headless: bool = True) -> webdriver.Chrome:
@@ -78,9 +53,32 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts = Options()
     opts.page_load_strategy = "eager"
     opts.add_argument("--window-size=1366,900")
+    
+    # Configurações obrigatórias para rodar em containers/VMs de servidor
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--headless=new")
+    
+    # NOVAS LINHAS PARA CORRIGIR O ERRO DE CRIAÇÃO DE SESSÃO:
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--no-zygote")
+    opts.add_argument("--disable-setuid-sandbox")
+    opts.add_argument("--user-data-dir=/tmp/chrome-user-data") # Define um diretório temporário para evitar conflitos
+    opts.add_argument("--remote-debugging-port=9222") 
+    # FIM DAS NOVAS LINHAS
+
+    # O parâmetro 'headless' está sendo garantido pelas flags acima.
     if headless:
-        opts.add_argument("--headless=new")
-    return webdriver.Chrome(options=opts)
+        pass 
+        
+    # Tenta usar o driver padrão. Se falhar, tenta o binário do Chromium
+    try:
+        driver = webdriver.Chrome(options=opts)
+    except Exception:
+        opts.binary_location = "/usr/bin/chromium-browser"
+        driver = webdriver.Chrome(options=opts)
+
+    return driver
 
 def safe_click_we(driver, we):
     """Clica em um elemento de forma segura, rolando até ele primeiro."""
@@ -105,15 +103,13 @@ def send_to_google_sheet(numero_str: str):
         print("[AVISO] URL do Google Apps Script não configurada. O envio foi ignorado.")
         return
 
-    # MENSAGEM AJUSTADA: Informa que o Apps Script registrará o timestamp
     print(f"Enviando o número '{numero_str}' (com registro de hora/data pelo Apps Script) para a Google Planilha...")
     headers = {"Content-Type": "application/json"}
-    # O payload envia APENAS o número, conforme o Apps Script espera
     payload = {"text": numero_str} 
 
     try:
         response = requests.post(APPS_SCRIPT_URL, data=json.dumps(payload), headers=headers, timeout=15)
-        response.raise_for_status() # Lança um erro se o status for 4xx ou 5xx
+        response.raise_for_status()
         
         response_data = response.json()
         if response_data.get("ok"):
@@ -198,7 +194,6 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
 # ================== MAIN ==================
 def main():
     hoje = dt.date.today()
-    #hoje = dt.date(2025, 10, 10) # Linha para teste com data fixa
     data_inicio_str = hoje.strftime(DATE_FMT_BR)
     data_fim_str = hoje.strftime(DATE_FMT_BR)
     
@@ -214,11 +209,8 @@ def main():
     try:
         pops_logar_e_filtrar_recebimentos(driver, data_inicio_str, data_fim_str)
         
-        # MENSAGEM AJUSTADA: Informa que o timestamp também foi registrado
         final_msg = (
-            "Processo concluído com sucesso!\n\n"
-            f"- Portal: PopSol Energia\n"
-            f"- Filtro de Pagamento: {data_inicio_str}\n"
+            "Processo concluído com sucesso!\n"
             f"- O número e o registro de data/hora foram enviados para a sua Google Planilha."
         )
         success = True
@@ -227,15 +219,13 @@ def main():
     except Exception as e:
         final_msg = f"Ocorreu um erro durante a execução:\n\n{e}"
         print(f"\n[ERRO] {final_msg}")
+        raise # Levanta o erro para o GitHub Actions capturar a falha
 
     finally:
         try:
             driver.quit()
         except Exception:
             pass
-        
-        titulo_notificacao = "Automação Concluída" if success else "Erro na Automação"
-        notify(titulo_notificacao, final_msg)
 
 if __name__ == "__main__":
     main()
