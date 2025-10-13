@@ -55,7 +55,7 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--window-size=1366,900")
     
     # Argumentos obrigatórios para ambientes Linux/servidor (CI/CD)
-    opts.add_argument("--no-sandbox") # OBRIGATÓRIO em ambientes Linux sem interface gráfica (resolve o erro principal)
+    opts.add_argument("--no-sandbox") # OBRIGATÓRIO em ambientes Linux sem interface gráfica
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--headless=new")
     opts.add_argument("--disable-gpu")
@@ -63,8 +63,8 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--disable-setuid-sandbox")
     opts.add_argument("--disable-extensions")
     
-    # LINHA REMOVIDA: opts.add_argument("--user-data-dir=/tmp/chrome-user-data")
-    # CORREÇÃO: Removemos a linha acima que estava causando o conflito de diretório.
+    # CORREÇÃO FINAL: Reintroduz o user-data-dir para um local seguro no ambiente do runner.
+    opts.add_argument("--user-data-dir=/tmp/selenium_user_profile") 
 
     if headless:
         pass 
