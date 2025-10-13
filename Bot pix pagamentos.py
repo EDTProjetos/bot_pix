@@ -20,6 +20,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 def log(title: str, text: str) -> None:
@@ -61,7 +63,8 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
         opts.add_argument("--headless=new")
 
     # ⚠️ Importante: NÃO usar --user-data-dir aqui
-    return webdriver.Chrome(options=opts)
+    service = ChromeService(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=opts)
 
 
 def safe_click_we(driver, we):
