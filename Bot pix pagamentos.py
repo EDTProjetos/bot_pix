@@ -55,18 +55,16 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--window-size=1366,900")
     
     # Argumentos obrigatórios para ambientes Linux/servidor (CI/CD)
-    opts.add_argument("--no-sandbox")
+    opts.add_argument("--no-sandbox") # OBRIGATÓRIO em ambientes Linux sem interface gráfica (resolve o erro principal)
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--headless=new")
     opts.add_argument("--disable-gpu")
     opts.add_argument("--no-zygote")
     opts.add_argument("--disable-setuid-sandbox")
+    opts.add_argument("--disable-extensions")
     
-    # CORREÇÃO para o erro "session not created: Chrome failed to start: exited normally"
-    # e para o erro anterior de user-data-dir
-    opts.add_argument("--user-data-dir=/tmp/chrome-user-data") 
-    opts.add_argument("--remote-debugging-port=9222") 
-    opts.add_argument("--disable-extensions") # Última correção adicionada
+    # LINHA REMOVIDA: opts.add_argument("--user-data-dir=/tmp/chrome-user-data")
+    # CORREÇÃO: Removemos a linha acima que estava causando o conflito de diretório.
 
     if headless:
         pass 
