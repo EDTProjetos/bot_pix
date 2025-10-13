@@ -2,10 +2,9 @@
 
 """
 Automação PopSol - Filtragem e Envio para Google Planilhas
-- Objetivo: Acessar o portal PopSol, aplicar filtro de pagamento, clicar no ícone
-            de ajuda para gerar um número e enviá-lo para uma Google Planilha via Web App.
-- Versão para CI (GitHub Actions): Chrome headless + perfil temporário único por execução.
-- Credenciais e URL do Apps Script mantidas no código a pedido do usuário.
+- Acessa PopSol, aplica filtro de pagamento (hoje), clica no ícone de ajuda
+  para gerar o número e envia para um Apps Script (Google Sheets).
+- Versão para CI (GitHub Actions): Chrome headless + perfil temporário único.
 """
 
 import os
@@ -14,7 +13,6 @@ import json
 import shutil
 import datetime as dt
 import tempfile
-import subprocess
 import requests
 
 # ===== Selenium =====
@@ -32,22 +30,22 @@ def log(title: str, text: str) -> None:
 
 
 # ================== CONFIG ==================
-HEADLESS = True                 # Para CI deve ser True
-WAIT_S = 45                     # Um pouco maior pro ambiente remoto
+HEADLESS = True                # para rodar no Actions
+WAIT_S = 45                    # mais folgado no ambiente remoto
 DATE_FMT_BR = "%d/%m/%Y"
 
-# ================== POPSOL - CREDENCIAIS E URL (FIXAS NO CÓDIGO) ==================
+# ================== POPSOL (fixos a pedido do usuário) ==================
 LOGIN_URL_POPSOL = "https://cliente.popsolenergia.com.br/#/auth/login"
 USER_POPSOL = "raphael.barbosa@energiadetodos.com.br"
 PWD_POPSOL  = "Kon@rulind0."
 
-# ================== GOOGLE SHEETS - WEB APP (FIXO NO CÓDIGO) ==================
+# ================== GOOGLE SHEETS (fixo a pedido do usuário) ==================
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE8JPkff699pufz7js4xr-XWa5G5pc_6be-RmG5CQbpWHQlq6loYIceU6XB9oYcWRxfg/exec"
 
 
 # ================== WebDriver ==================
 def make_driver(headless: bool = True) -> webdriver.Chrome:
-    """Cria e configura Chrome WebDriver com perfil temporário único (evita 'profile in use')."""
+    """Cria Chrome WebDriver com perfil temporário único (evita 'profile in use')."""
     opts = Options()
     opts.page_load_strategy = "eager"
     opts.add_argument("--window-size=1366,900")
@@ -58,14 +56,16 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--disable-gpu")
     opts.add_argument("--no-zygote")
     opts.add_argument("--disable-setuid-sandbox")
+
     # Perfil temporário exclusivo por execução
     profile_dir = tempfile.mkdtemp(prefix="chrome-profile-")
     opts.add_argument(f"--user-data-dir={profile_dir}")
+
     if headless:
         opts.add_argument("--headless=new")
 
     driver = webdriver.Chrome(options=opts)
-    # armazena para limpeza no finally
+    # Guardar para limpeza no finally
     driver._temp_profile_dir = profile_dir
     return driver
 
@@ -85,12 +85,12 @@ def safe_click(driver, locator):
 
 # ================== Google Sheets ==================
 def send_to_google_sheet(numero_str: str):
-    """Envia o número extraído para o Apps Script (que grava o timestamp)."""
+    """Envia o número para o Apps Script (que grava o timestamp)."""
     if not APPS_SCRIPT_URL:
         log("AVISO", "URL do Apps Script não configurada. Envio ignorado.")
         return
 
-    log("ENVIO", f"Enviando '{numero_str}' para a Google Planilha (timestamp no Apps Script).")
+    log("ENVIO", f"Enviando '{numero_str}' para a Google Planilha…")
     headers = {"Content-Type": "application/json"}
     payload = {"text": numero_str}
 
@@ -123,8 +123,8 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
     w.until(lambda d: "auth/login" not in d.current_url)
     log("LOGIN", "Login realizado.")
 
-    # Ir para Recebimentos (tenta múltiplas variantes de seletor)
-    log("NAV", "Abrindo a tela de 'Recebimentos'…")
+    # Recebimentos (tenta seletores alternativos)
+    log("NAV", "Abrindo 'Recebimentos'…")
     try:
         safe_click(driver, (By.XPATH, "//a[normalize-space()='Recebimentos']"))
     except TimeoutException:
@@ -133,7 +133,7 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
         except TimeoutException:
             safe_click(driver, (By.XPATH, "//span[normalize-space()='Recebimentos']"))
 
-    # Campos de data (Data de pagamento)
+    # Filtro Data de pagamento
     log("FILTRO", "Aguardando campos de 'Data de pagamento'…")
     campos_data_xpath = "(//h3[normalize-space()='Data de pagamento']/following::input)[position()<=2]"
     w.until(EC.presence_of_element_located((By.XPATH, campos_data_xpath)))
@@ -157,14 +157,14 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
     safe_click(driver, (By.XPATH, "//button[.//label[normalize-space()='Aplicar filtros']]"))
     time.sleep(3)
 
-    # Clicar no ícone question_mark e capturar o número
+    # Ícone question_mark e captura do número
     log("EXTRAÇÃO", "Clicando no ícone 'question_mark'…")
     safe_click(driver, (By.XPATH, "//mat-icon[normalize-space()='question_mark']"))
 
     try:
         locator_numero = (By.XPATH, "//div[@title='Contar novamente']")
-        log("EXTRAÇÃO", "Aguardando o número ser gerado…")
-        elemento_numero = w.until(EC.visibility_of_element_located(locator_numero))
+        log("EXTRAÇÃO", "Aguardando o número…")
+        elemento_numero = WebDriverWait(driver, WAIT_S).until(EC.visibility_of_element_located(locator_numero))
         numero_copiado = elemento_numero.text.strip()
 
         if not numero_copiado.isdigit():
@@ -175,8 +175,6 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
 
     except TimeoutException:
         raise RuntimeError("Não encontrei o elemento com o número (title='Contar novamente').")
-    except Exception:
-        raise
 
 
 # ================== MAIN ==================
@@ -206,7 +204,7 @@ def main():
     except Exception as e:
         final_msg = f"Ocorreu um erro durante a execução:\n\n{e}"
         print(f"\n[ERRO] {final_msg}")
-        raise  # deixa o Actions marcar como falha
+        raise
 
     finally:
         # encerra o Chrome
@@ -214,7 +212,7 @@ def main():
             driver.quit()
         except Exception:
             pass
-        # remove o perfil temporário para não acumular lixo no runner
+        # remove o perfil temporário para não acumular lixo entre runs
         try:
             if getattr(driver, "_temp_profile_dir", None):
                 shutil.rmtree(driver._temp_profile_dir, ignore_errors=True)
