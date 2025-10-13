@@ -2,7 +2,7 @@ name: Run PopSol -> Sheets hourly
 
 on:
   schedule:
-    - cron: "0 * * * *"   # todo início de hora (UTC)
+    - cron: "0 11-23 * * *"   # Roda das 8h às 20h (horário de SP)
   workflow_dispatch: {}    # permite rodar manualmente
 
 # Evita overlap: se um job ainda estiver rodando, cancela o anterior
