@@ -54,20 +54,20 @@ def make_driver(headless: bool = True) -> webdriver.Chrome:
     opts.page_load_strategy = "eager"
     opts.add_argument("--window-size=1366,900")
     
-    # Configurações obrigatórias para rodar em containers/VMs de servidor
+    # Argumentos obrigatórios para ambientes Linux/servidor (CI/CD)
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--headless=new")
-    
-    # NOVAS LINHAS PARA CORRIGIR O ERRO DE CRIAÇÃO DE SESSÃO:
     opts.add_argument("--disable-gpu")
     opts.add_argument("--no-zygote")
     opts.add_argument("--disable-setuid-sandbox")
-    opts.add_argument("--user-data-dir=/tmp/chrome-user-data") # Define um diretório temporário para evitar conflitos
+    
+    # CORREÇÃO para o erro "session not created: Chrome failed to start: exited normally"
+    # e para o erro anterior de user-data-dir
+    opts.add_argument("--user-data-dir=/tmp/chrome-user-data") 
     opts.add_argument("--remote-debugging-port=9222") 
-    # FIM DAS NOVAS LINHAS
+    opts.add_argument("--disable-extensions") # Última correção adicionada
 
-    # O parâmetro 'headless' está sendo garantido pelas flags acima.
     if headless:
         pass 
         
