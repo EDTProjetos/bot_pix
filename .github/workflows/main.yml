@@ -2,17 +2,25 @@ name: Run PopSol -> Sheets hourly
 
 on:
   schedule:
-    - cron: "0 * * * *"  # roda todo início de hora (UTC)
-  workflow_dispatch: {}   # permite rodar manualmente também
+    - cron: "0 * * * *"   # todo início de hora (UTC)
+  workflow_dispatch: {}    # permite rodar manualmente
+
+# Evita overlap se uma execução demorar mais que 1h
+concurrency:
+  group: pops_to_sheets
+  cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # mata se passar disso
     env:
       TZ: America/Sao_Paulo
+      # Estes só terão efeito se você criar secrets no repo; ok deixar aqui
       POPSOL_USER: ${{ secrets.POPSOL_USER }}
       POPSOL_PASS: ${{ secrets.POPSOL_PASS }}
       APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +29,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
 
       - name: Install Google Chrome (stable)
         run: |
@@ -32,7 +44,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
 
