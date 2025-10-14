@@ -5,7 +5,7 @@ on:
     - cron: "0 11-23 * * 1-6"   # Roda das 8h às 20h (SP), de Seg a Sáb
   workflow_dispatch: {}    # permite rodar manualmente
 
-# Evita overlap: se um job ainda estiver rodando, cancela o anterior
+# Evitar sobreposição de jobs
 concurrency:
   group: pops_to_sheets
   cancel-in-progress: true
@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 20
     env:
       TZ: America/Sao_Paulo
-      # Se quiser usar secrets no futuro, já estão aqui:
+      # Função de secrets
       POPSOL_USER: ${{ secrets.POPSOL_USER }}
       POPSOL_PASS: ${{ secrets.POPSOL_PASS }}
       APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
@@ -41,3 +41,6 @@ jobs:
       - name: Run script (headless)
         run: |
           python "Bot pix pagamentos.py"
+
+
+    # Código feito por Raphael Barbosa, não permitida a republicação da mesma dentro de qualquer sistema. 
