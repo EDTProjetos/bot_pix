@@ -39,7 +39,7 @@ USER_POPSOL = "raphael.barbosa@energiadetodos.com.br"
 PWD_POPSOL  = "Kon@rulind0."
 
 # ================== GOOGLE SHEETS (fixo a pedido do usuário) ==================
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVL42hEp9u85uEmnn0qjj2fti9HknQL9X2kB2943dVq7VVhYAphO0aGlvkysw4h-iJpQ/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi2Dh8_B-OaXZe6AZcbciKVrWly7IC0jXy5u3Vvewdsbl2cYlndQrAQfC2gK1PniOnQg/exec"
 
 
 # ================== WebDriver ==================
