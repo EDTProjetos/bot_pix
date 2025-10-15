@@ -1,6 +1,6 @@
-name: Run PopSol -> Sheets hourly
+##name: Run PopSol -> Sheets hourly
 
-on:
+##on:
   schedule:
     # Roda 10 minutos antes da hora cheia, das 11:50h às 23:50h UTC.
     # No fuso America/Sao_Paulo (fuso-3), isso equivale às 08:50h às 20:50h.
@@ -9,11 +9,11 @@ on:
   workflow_dispatch: {}    # permite rodar manualmente
 
 # Evitar sobreposição de jobs
-concurrency:
+##concurrency:
   group: pops_to_sheets
   cancel-in-progress: true
 
-jobs:
+##jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 20
