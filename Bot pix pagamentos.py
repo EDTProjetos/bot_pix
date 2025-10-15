@@ -29,8 +29,8 @@ def log(title: str, text: str) -> None:
 
 
 # ================== CONFIG ==================
-HEADLESS = True                # para rodar no Actions
-WAIT_S = 45                    # mais folgado no ambiente remoto
+HEADLESS = True             # para rodar no Actions
+WAIT_S = 45                 # mais folgado no ambiente remoto
 DATE_FMT_BR = "%d/%m/%Y"
 
 # ================== POPSOL (fixos a pedido do usuário) ==================
@@ -113,8 +113,10 @@ def pops_logar_e_filtrar_recebimentos(driver: webdriver.Chrome, data_de: str, da
     # Login
     email = w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='email']")))
     senha = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+    
     email.clear(); email.send_keys(USER_POPSOL)
     senha.clear(); senha.send_keys(PWD_POPSOL)
+    
     log("LOGIN", "Enviando credenciais…")
     senha.send_keys(Keys.ENTER)
     w.until(lambda d: "auth/login" not in d.current_url)
@@ -185,15 +187,17 @@ def main():
     print(f"[Data Alvo] Período de pagamento: {data_inicio_str}")
     print("=" * 60)
 
+    driver = None
     try:
         driver = make_driver(headless=HEADLESS)
         pops_logar_e_filtrar_recebimentos(driver, data_inicio_str, data_fim_str)
-        print("\nProcesso concluído com sucesso!\n- O número e o timestamp foram enviados para a Google Planilha.")
+        print("\nProcesso concluído com sucesso!\n- O número e o timestamp (hora zero) foram enviados para a Google Planilha.")
     finally:
-        try:
-            driver.quit()
-        except Exception:
-            pass
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
