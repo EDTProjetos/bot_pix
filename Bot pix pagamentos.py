@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Automação PopSol - Filtragem e Envio para Google Planilhas
-- Acessa PopSol, aplica filtro de pagamento (hoje), clica no ícone de ajuda
-  para gerar o número e envia para um Apps Script (Google Sheets).
-- Versão para CI (GitHub Actions): Chrome headless estável (sem user-data-dir).
+Gerador automação da popsol para o GoogleSheets criando assim o relatório de pix no horário
 """
 
 import time
@@ -202,3 +199,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""Criado e editado por Raphael Barbosa, não é permitida a utilização em outras áreas, repositório fechado"""
