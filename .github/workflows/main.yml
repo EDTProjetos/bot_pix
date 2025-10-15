@@ -2,7 +2,10 @@ name: Run PopSol -> Sheets hourly
 
 on:
   schedule:
-    - cron: "0 11-23 * * 1-6"   # Roda das 8h às 20h (SP), de Seg a Sáb
+    # Roda 10 minutos antes da hora cheia, das 11:50h às 23:50h UTC.
+    # No fuso America/Sao_Paulo (fuso-3), isso equivale às 08:50h às 20:50h.
+    # Se você quer das 08:50h às 20:50h (SP), o intervalo UTC está correto (11-23)
+    - cron: "50 11-23 * * *" 
   workflow_dispatch: {}    # permite rodar manualmente
 
 # Evitar sobreposição de jobs
@@ -15,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      # Este fuso horário influencia a visualização dos logs, mas o agendamento CRON 
+      # sempre é baseado em UTC, por isso a expressão 11-23 está correta para
+      # rodar das 8h às 20h no Brasil/SP (UTC-3).
       TZ: America/Sao_Paulo
       # Função de secrets
       POPSOL_USER: ${{ secrets.POPSOL_USER }}
@@ -43,4 +49,4 @@ jobs:
           python "Bot pix pagamentos.py"
 
 
-    # Código feito por Raphael Barbosa, não permitida a republicação da mesma dentro de qualquer sistema. 
+    # Código feito por Raphael Barbosa, não permitida a republicação da mesma dentro de qualquer sistema.
